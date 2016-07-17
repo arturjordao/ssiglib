@@ -39,66 +39,49 @@
 *  POSSIBILITY OF SUCH DAMAGE.
 *****************************************************************************L*/
 
-
-#ifndef _SSIG_ML_OBLIQUENODE_HPP_
-#define _SSIG_ML_OBLIQUENODE_HPP_
-// c++
-#include <memory>
-#include <map>
+#include <gtest/gtest.h>
+// opencv
+#include <opencv2/core/ocl.hpp>
+#include <opencv2/core.hpp>
 // ssiglib
-#include <ssiglib/ml/classification.hpp>
-#include <ssiglib/ml/pls.hpp>
+#include <ssiglib/ml/pls_classifier.hpp>
+#include <ssiglib/ml/oblique_decision_tree.hpp>
 
-namespace ssig {
+TEST(OBLIQUENODE, BinaryClassification) {
+	cv::Mat_<int> labels = (cv::Mat_<int>(10, 1) << 1, 1, 1, 1, 1,  -1, -1, -1, -1, -1);
+	cv::Mat_<float> inp =
+		(cv::Mat_<float>(10, 10) <<
+		1, 2, 2, 2, 4, 6, 2, 9, 10, 11,
+		102, 100, 104, 105, 99, 101, 99, 12, 19, 100,
+		1, 2, 2, 4 , 9, 10, 8, 8, 10, 9,
+		10, 22, 32, 54, 70, 10, 8, 80, 90, 9,
+		35, 27, 2, 40, 69, 10, 88, 8, 10, 89,
+		11, 21, 112, 34, 89, 10, 8, 48, 1, 78,
+		1, 22, 2, 2, 43, 36, 2, 9, 10, 31,
+		102, 100, 14, 115, 99, 101, 99, 12, 19, 200,
+		12, 10, 14, 15, 79, 11, 78, 12, 19, 12,
+		122, 19, 14, 15, 7, 3, 2, 1, 2, 1);
+	
+	auto classifierType = ssig::PLSClassifier::create();
+	classifierType->setNumberOfFactors(1);
 
-	class ObliqueNode {
+	auto classifier = ssig::ObliqueDTClassifier::create();
+	classifier->setClassifier(classifierType);
+	classifier->setDepth(2);
+	classifier->setFSType("noPermutation");
+	classifier->learn(inp, labels);
+	
 
-	public:
-		ML_EXPORT static cv::Ptr<ObliqueNode> create();
-		ML_EXPORT virtual ~ObliqueNode(void);
+	cv::Mat_<float> query1 = (cv::Mat_<float>(1, 2) << 1, 2);
+	cv::Mat_<float> query2 = (cv::Mat_<float>(1, 2) << 100, 103);
 
-		ML_EXPORT void learn(
-			const cv::Mat_<float>& input,
-			const cv::Mat& labels);
-
-		ML_EXPORT void read(const cv::FileNode& fn);
-		//ML_EXPORT void write(cv::FileStorage& fs);
-
-		void setNSamples(int pos, int neg);
-		void setDepth(int depth);
-		void setClassifier(ssig::Classifier *classifier);
-		//Builds a classification model for thisnode
-		void createModel(const cv::Mat_<float> &X, cv::Mat_<int> &responses, std::vector<int> &col_index);
-		//Projects a feature vector onto this node (return 0 to go to the left and 1 to go to the right)
-		int projectFeatures(const cv::Mat_<float> &X);
-		void computeThreshold(std::vector<float> &v0, std::vector<float> &v1);
-		cv::Ptr<ssig::ObliqueNode> getChild(int child);
-		void setChild(cv::Ptr<ObliqueNode> child, int id);
-		int getDepth();
-
-	protected:
-		ML_EXPORT ObliqueNode(void);
-		ML_EXPORT ObliqueNode(const ObliqueNode& rhs);
-
-	private:
-		//Id of this node
-		int id;
-		//Amount of positive and negative samples of this node
-		int neg, pos;
-		//Depth of this node
-		int depth;
-		//Index of features used for this node
-		std::vector<int> col_index;	
-		//Decision threshold for this node
-		float threshold;			
-		//Children of this node
-		cv::Ptr<ObliqueNode> children[2];
-		
-		ssig::Classifier *classifier;
-	};
-
-}  // namespace ssig
-
-#endif  // !_SSIG_ML_ObliqueNode_HPP_
-
+	cv::Mat_<float> resp;
+	/*classifier->predict(query1, resp);
+	auto ordering = classifier->getLabelsOrdering();
+	int idx = ordering[1];
+	EXPECT_GE(resp[0][idx], 0);
+	classifier->predict(query2, resp);
+	idx = ordering[-1];
+	EXPECT_GE(resp[0][idx], 0);*/
+}
 

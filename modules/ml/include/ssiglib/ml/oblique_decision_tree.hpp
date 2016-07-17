@@ -40,65 +40,86 @@
 *****************************************************************************L*/
 
 
-#ifndef _SSIG_ML_OBLIQUENODE_HPP_
-#define _SSIG_ML_OBLIQUENODE_HPP_
+#ifndef _SSIG_ML_OBLIQUEDECISIONTREECLASSIFIER_HPP_
+#define _SSIG_ML_OBLIQUEDECISIONTREECLASSIFIER_HPP_
 // c++
 #include <memory>
-#include <map>
 // ssiglib
-#include <ssiglib/ml/classification.hpp>
-#include <ssiglib/ml/pls.hpp>
+#include "classification.hpp"
+#include "multiclass.hpp"
+#include "oblique_node.hpp"
 
 namespace ssig {
 
-	class ObliqueNode {
+	class ObliqueDTClassifier : public Classifier {
+		virtual void addLabels(const cv::Mat& labels);
 
 	public:
-		ML_EXPORT static cv::Ptr<ObliqueNode> create();
-		ML_EXPORT virtual ~ObliqueNode(void);
+		ML_EXPORT static cv::Ptr<ObliqueDTClassifier> create();
+		ML_EXPORT virtual ~ObliqueDTClassifier(void);
 
 		ML_EXPORT void learn(
 			const cv::Mat_<float>& input,
-			const cv::Mat& labels);
+			const cv::Mat& labels) override;
 
-		ML_EXPORT void read(const cv::FileNode& fn);
-		//ML_EXPORT void write(cv::FileStorage& fs);
+		ML_EXPORT int predict(
+			const cv::Mat_<float>& inp,
+			cv::Mat_<float>& resp) const override;
 
-		ML_EXPORT void setNSamples(int pos, int neg);
+		ML_EXPORT cv::Mat getLabels() const override;
+		ML_EXPORT std::unordered_map<int, int> getLabelsOrdering() const override;
+
+		ML_EXPORT void setClassWeights(const int classLabel,
+			const float weight) override;
+
+		ML_EXPORT bool empty() const override;
+		ML_EXPORT bool isTrained() const override;
+		ML_EXPORT bool isClassifier() const override;
+
+		ML_EXPORT void read(const cv::FileNode& fn) override;
+		ML_EXPORT void write(cv::FileStorage& fs) const override;
+
+		ML_EXPORT Classifier* clone() const override;
+
+		ML_EXPORT void setClassifier(ssig::Classifier *classifier);
 
 		ML_EXPORT void setDepth(int depth);
 
-		//Builds a classification model for thisnode
-		ML_EXPORT void createModel(const cv::Mat_<float> &X, cv::Mat_<int> &responses, std::vector<size_t> &col_index);
+		ML_EXPORT int getDepth();
 
-		//Projects a feature vector onto this node (return 0 to go to the left and 1 to go to the right)
-		ML_EXPORT int projectFeatures(const cv::Mat_<float> &X);
+		ML_EXPORT void setMTry(int mTry);
+
+		ML_EXPORT int getMTry();
+
+		ML_EXPORT void setFSType(std::string fsType);
+
 
 	protected:
-		ML_EXPORT ObliqueNode(void);
-		ML_EXPORT ObliqueNode(const ObliqueNode& rhs);
+		ML_EXPORT ObliqueDTClassifier(void);
+		ML_EXPORT ObliqueDTClassifier(const ObliqueDTClassifier& rhs);
 
 	private:
-		//Id of this node
-		int id;
-		//Amount of positive and negative samples of this node
-		int neg, pos;
-		//Depth of this node
-		int depth;
-		//Index of features used for this node
-		std::vector<size_t> col_index;	
-		//Decision threshold for this node
-		float threshold;			
-		//Children of this node
-		ObliqueNode *children[2];
-		
-		Classifier *classifier;
-		
-		void computeThreshold(std::vector<float> &v0, std::vector<float> &v1);
+		//Number of features for each node
+		int mtry;									
+		bool nodePruning;
+		int nodeIds;
+		int numberOfFeatures;
+		//Depth of tree, if -1 the depth is 'infinity'
+		int maxDepth;
+		float classPercentage;
+
+		std::string fsType;
+		//Tree root
+		cv::Ptr<ssig::ObliqueNode> root;							
+		ssig::Classifier *classifier;
+
+		bool mTrained = false;
+		void recursiveModel(cv::Ptr<ssig::ObliqueNode> &root, std::vector<int> samplesIdx, const cv::Mat_<float> &X, cv::Mat_<int> &responses, int delph);
+		std::vector<int> nextFeatures();
 	};
 
 }  // namespace ssig
 
-#endif  // !_SSIG_ML_ObliqueNode_HPP_
+#endif  // !_SSIG_ML_ObliqueDTClassifier_HPP_
 
 

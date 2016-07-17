@@ -63,23 +63,38 @@ namespace ssig {
 		return cv::Ptr<ObliqueNode>(new ObliqueNode());
 	}
 
+	void ObliqueNode::setClassifier(ssig::Classifier *classifier){
+		this->classifier = classifier;
+	}
+
+	cv::Ptr<ObliqueNode> ObliqueNode::getChild(int id){
+		return children[id];
+	}
+	void ObliqueNode::setChild(cv::Ptr<ObliqueNode> child, int id){
+		this->children[id] = child;
+	}
+	int ObliqueNode::getDepth(){
+		return this->depth;
+	}
+	void ObliqueNode::setNSamples(int pos, int neg){
+		this->neg = neg;
+		this->pos = pos;
+	}
+	void ObliqueNode::setDepth(int depth){
+		this->depth = depth;
+	}
 	void ObliqueNode::createModel(
 		const cv::Mat_<float> &X,
 		cv::Mat_<int> &responses,
-		std::vector<size_t> &col_index){
-		cv::Mat_<float> Xtmp;
-		cv::Mat_<float> ret;
-		cv::Mat_<float> pos;
-		cv::Mat_<float> neg;
+		std::vector<int> &col_index){
+		cv::Mat_<float> Xtmp, ret, pos, neg;
 		std::vector<float> v0;
 		std::vector<float> v1;
-		int i;
-		int idxPos;
+		int i, idxPos;
 
 		pos.create(0, X.cols);
 		neg.create(0, X.cols);
 		Xtmp.create(X.rows, (int)col_index.size());
-
 		//Select the features before running the classification
 		for (i = 0; i < col_index.size(); i++)
 			X.col((int)col_index[(int)i]).copyTo(Xtmp.col((int)i));
@@ -93,8 +108,8 @@ namespace ssig {
 		}
 
 		/*classifier->addSamples(pos, "1");
-		classifier->addSamples(neg, "0");
-		classifier->learn();*/
+		classifier->addSamples(neg, "0");*/
+		classifier->learn(Xtmp,responses);
 
 		this->col_index = col_index;
 
@@ -102,7 +117,7 @@ namespace ssig {
 		// regress each sample and compute the threshold
 		for (i = 0; i < X.rows; i++) {
 			classifier->predict(Xtmp.row(i), ret);
-			if (responses(i, 0) == 0)
+			if (responses(i, 0) == -1)
 				v0.push_back(ret(0, 0));
 			else
 				v1.push_back(ret(0, 0));
