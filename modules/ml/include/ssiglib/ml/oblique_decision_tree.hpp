@@ -55,6 +55,11 @@ namespace ssig {
 		virtual void addLabels(const cv::Mat& labels);
 
 	public:
+		enum FeatureSelctionType {
+			NOPERMUTATION,
+			RANDOM,
+			BLOCK,
+		};
 		ML_EXPORT static cv::Ptr<ObliqueDTClassifier> create();
 		ML_EXPORT virtual ~ObliqueDTClassifier(void);
 
@@ -91,7 +96,7 @@ namespace ssig {
 
 		ML_EXPORT int getMTry();
 
-		ML_EXPORT void setFSType(std::string fsType);
+		ML_EXPORT void setFSType(int fsType);
 
 
 	protected:
@@ -99,22 +104,31 @@ namespace ssig {
 		ML_EXPORT ObliqueDTClassifier(const ObliqueDTClassifier& rhs);
 
 	private:
-		//Number of features for each node
-		int mtry;									
 		bool nodePruning;
-		int nodeIds;
+		//Number of features for each node
+		int mtry;	
+		//Controls the feature block (size of mtry) collected
+		int blockMtry;
 		int numberOfFeatures;
+		int nodeIds;
+		int fsType;
 		//Depth of tree, if -1 the depth is 'infinity'
 		int maxDepth;
 		float classPercentage;
 
-		std::string fsType;
+		std::vector<int> featuresIdx;
+		int index;
 		//Tree root
-		cv::Ptr<ssig::ObliqueNode> root;							
+		ssig::ObliqueNode *root;							
 		ssig::Classifier *classifier;
 
 		bool mTrained = false;
-		void recursiveModel(cv::Ptr<ssig::ObliqueNode> &root, std::vector<int> samplesIdx, const cv::Mat_<float> &X, cv::Mat_<int> &responses, int delph);
+		void recursiveModel(ssig::ObliqueNode **root,
+			std::vector<int> samplesIdx,
+			const cv::Mat_<float> &X,
+			cv::Mat_<int> &responses,
+			int delph);
+		void prepareFeatures();
 		std::vector<int> nextFeatures();
 	};
 

@@ -54,6 +54,7 @@ namespace ssig {
 	class ObliqueNode {
 
 	public:
+		ML_EXPORT ObliqueNode(void);
 		ML_EXPORT static cv::Ptr<ObliqueNode> create();
 		ML_EXPORT virtual ~ObliqueNode(void);
 
@@ -68,16 +69,17 @@ namespace ssig {
 		void setDepth(int depth);
 		void setClassifier(ssig::Classifier *classifier);
 		//Builds a classification model for thisnode
-		void createModel(const cv::Mat_<float> &X, cv::Mat_<int> &responses, std::vector<int> &col_index);
+		void createModel(const cv::Mat_<float> &X,
+			cv::Mat_<int> &responses,
+			std::vector<int> &col_index);
 		//Projects a feature vector onto this node (return 0 to go to the left and 1 to go to the right)
-		int projectFeatures(const cv::Mat_<float> &X);
+		int projectFeatures(const cv::Mat_<float> &X,
+			float &resp);
 		void computeThreshold(std::vector<float> &v0, std::vector<float> &v1);
-		cv::Ptr<ssig::ObliqueNode> getChild(int child);
-		void setChild(cv::Ptr<ObliqueNode> child, int id);
+		ObliqueNode **getChild(int child);
 		int getDepth();
 
 	protected:
-		ML_EXPORT ObliqueNode(void);
 		ML_EXPORT ObliqueNode(const ObliqueNode& rhs);
 
 	private:
@@ -92,7 +94,7 @@ namespace ssig {
 		//Decision threshold for this node
 		float threshold;			
 		//Children of this node
-		cv::Ptr<ObliqueNode> children[2];
+		ObliqueNode *children[2];
 		
 		ssig::Classifier *classifier;
 	};

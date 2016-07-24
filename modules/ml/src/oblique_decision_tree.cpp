@@ -61,12 +61,41 @@ namespace ssig {
 
 	int ObliqueDTClassifier::predict(
 		const cv::Mat_<float>& inp,
-		cv::Mat_<float>& resp) const {
-		//mPls->predict(inp, resp);
-		
-		cv::Mat_<float> r;
-		//r.create(inp.rows, mYColumns);
-		return resp[0][0];/*TODO:Checar isso*/
+		cv::Mat_<float>& response) const {
+
+		ObliqueNode *node = this->root;
+		float resp, acc;
+		bool prune = false;
+		int ret;
+		int level = 1;/*Used to compute the mean*/
+
+		acc = 0;
+		while (node != NULL) {
+			ret = node->projectFeatures(inp, resp);
+			acc += resp;
+
+			if (ret == 0)
+				node = *node->getChild(0);
+			else
+				node = *node->getChild(1);
+
+			/*Pruning*/
+			if (nodePruning == true){
+				if ((acc / level) < 0){
+					prune = true; break;
+				}
+			}
+			level++;
+		}
+
+		if (prune == false)
+			resp = acc / (level - 1);
+		else
+			resp = acc / level;
+
+		response.create(1, 1);
+		response[0][0] = resp;
+		return -1;
 	}
 
 	void ObliqueDTClassifier::addLabels(const cv::Mat& labels) {
@@ -84,6 +113,17 @@ namespace ssig {
 		return cv::Ptr<ObliqueDTClassifier>(new ObliqueDTClassifier());
 	}
 
+	void ObliqueDTClassifier::prepareFeatures(){
+		int n(0);
+		this->index = 0;
+		this->featuresIdx = std::vector<int>(numberOfFeatures);
+		std::generate(featuresIdx.begin(), featuresIdx.end(), [&]{ return n++; });
+
+		if (fsType == FeatureSelctionType::RANDOM)
+			std::random_shuffle(this->featuresIdx.begin(), this->featuresIdx.end());
+
+	}
+
 	void ObliqueDTClassifier::learn(
 		const cv::Mat_<float>& input,
 		const cv::Mat& labels) {
@@ -98,24 +138,26 @@ namespace ssig {
 		for (int i = 0; i < input.rows; i++) {
 			samplesIdx.push_back(i);
 		}
-		numberOfFeatures = X.cols;
-		recursiveModel(root, samplesIdx, X, Y, 0);
+		this->numberOfFeatures = X.cols;
+		prepareFeatures();
+		recursiveModel(&root, samplesIdx, X, Y, 0);
 		X.release();
 		Y.release();
 		mTrained = true;
 	}
 
-	void ObliqueDTClassifier::recursiveModel(cv::Ptr<ssig::ObliqueNode> &root,
+	void ObliqueDTClassifier::recursiveModel(ssig::ObliqueNode **root,
 		std::vector<int> samplesIdx,
 		const cv::Mat_<float> &X,
 		cv::Mat_<int> &responses,
 		int depth){
+
 		std::vector<int> samplesIdxLeft, samplesIdxRight;
 		cv::Mat_<float> Xselect;
 		cv::Mat_<int> YSelect;
 		std::vector<int> feat_idx;
 		std::vector<float> classResp;
-		cv::Ptr<ssig::ObliqueNode> node, left, right;
+		ssig::ObliqueNode *node, **left, **right;
 		int class0 = 0, class1 = 0;
 		float resp;
 		//Stop criterion 1: Number of samples < 5
@@ -138,18 +180,19 @@ namespace ssig {
 		//Stop criterion 3: Some class is below of detemined percetual
 		float percentualClass0 = (float)class0 / samplesIdx.size();
 
-		//if (percentualClass0 > classPercentage || 1 - percentualClass0 > classPercentage){
-		//	//if (depth == 0)/*To avoid error(does not have col_index) in the save method*/
-		//	//	ReportError("Inconsistent number of classes at the depth 0");
-		//	return;
-		//}
+		//TODO: Artur, 0.99 must be a parameter in yml
+		if (percentualClass0 ==0 || 1-percentualClass0==0){
+			//if (depth == 0)/*To avoid error(does not have col_index) in the save method*/
+			//	ReportError("Inconsistent number of classes at the depth 0");
+			return;
+		}
 
 
 		feat_idx = nextFeatures();
 
 		//Build model
 		//node = new DT_PLS_Node(nodeIds++);
-		node = ssig::ObliqueNode::create();
+		node = new ssig::ObliqueNode();
 		node->setNSamples(class1, class0);
 		node->setDepth(depth);
 		node->setClassifier(this->classifier);
@@ -158,7 +201,7 @@ namespace ssig {
 
 		//Classify samples to generate new nodes
 		for (int i = 0; i < samplesIdx.size(); i++) {
-			if (node->projectFeatures(X.row(samplesIdx[i])) == 0)
+			if (node->projectFeatures(X.row(samplesIdx[i]), resp) == 0)
 				samplesIdxLeft.push_back(samplesIdx[i]);
 			else
 				samplesIdxRight.push_back(samplesIdx[i]);
@@ -168,7 +211,7 @@ namespace ssig {
 		if (samplesIdxLeft.size() == 0 || samplesIdxRight.size() == 0)
 			return;
 
-		root = node;
+		*root = node;
 
 		//Call recursively
 		left = node->getChild(0);
@@ -176,9 +219,6 @@ namespace ssig {
 
 		this->recursiveModel(left, samplesIdxLeft, X, responses, node->getDepth() + 1);
 		this->recursiveModel(right, samplesIdxRight, X, responses, node->getDepth() + 1);
-
-		//root->setChild(left, 0);
-		//root->setChild(right, 1);
 	}
 
 	cv::Mat ObliqueDTClassifier::getLabels() const {
@@ -190,21 +230,11 @@ namespace ssig {
 	}
 
 	std::vector<int> ObliqueDTClassifier::nextFeatures(){
-		std::vector<int> featuresIdx;
-		if (fsType == "randomPermutation"){
-			/*if (features.size() <= index + mtry){
-				features = GenerateRandomPermutation(features.size(), features.size());
-				index = 0;
-			}*/
 
-		}
-		else if (fsType == "noPermutation"){
-			int n(0);
-			featuresIdx = std::vector<int>(numberOfFeatures);
-			std::generate(featuresIdx.begin(), featuresIdx.end(), [&]{ return n++; });
-		}
-		
-		return featuresIdx;
+		std::vector<int> subSpace;
+		subSpace.assign(this->featuresIdx.begin() + index, featuresIdx.begin() + index + mtry);
+		index += mtry;
+		return subSpace;
 	}
 
 	bool ObliqueDTClassifier::empty() const {
@@ -221,16 +251,16 @@ namespace ssig {
 
 	void ObliqueDTClassifier::setClassWeights(const int classLabel, const float weight) {}
 
-	void ObliqueDTClassifier::setMTry(int mtry){
-		this->mtry = mtry;
-	}
-
 	int ObliqueDTClassifier::getMTry(){
 		return this->mtry;
 	}
 
-	void ObliqueDTClassifier::setFSType(std::string fsType){
+	void ObliqueDTClassifier::setFSType(int fsType){
 		this->fsType = fsType;
+	}
+
+	void ObliqueDTClassifier::setMTry(int mtry){
+		this->mtry = mtry;
 	}
 
 	void ObliqueDTClassifier::read(const cv::FileNode& fn) {

@@ -67,12 +67,10 @@ namespace ssig {
 		this->classifier = classifier;
 	}
 
-	cv::Ptr<ObliqueNode> ObliqueNode::getChild(int id){
-		return children[id];
+	ObliqueNode **ObliqueNode::getChild(int id){
+		return &children[id];
 	}
-	void ObliqueNode::setChild(cv::Ptr<ObliqueNode> child, int id){
-		this->children[id] = child;
-	}
+
 	int ObliqueNode::getDepth(){
 		return this->depth;
 	}
@@ -126,7 +124,8 @@ namespace ssig {
 		computeThreshold(v0, v1);
 	}
 
-	int ObliqueNode::projectFeatures(const cv::Mat_<float> &X) {
+	int ObliqueNode::projectFeatures(const cv::Mat_<float> &X,
+		float &resp) {
 		cv::Mat_<float> ret;
 		cv::Mat_<float> Xtmp;
 		int i;
@@ -142,7 +141,7 @@ namespace ssig {
 
 		//Project sample
 		classifier->predict(Xtmp, ret);
-
+		resp = ret(0,0);
 		//According to the threshold, return 0 or 1		
 		if (ret(0, 0) >= this->threshold)
 			return 1;
@@ -192,8 +191,13 @@ namespace ssig {
 			gini2 = 1 - (c1n2 / n2) * (c1n2 / n2) - (c2n2 / n2) * (c2n2 / n2);
 			gini.insert(std::pair<float, float>((n1 / n) * gini1 + (n2 / n) * gini2, cm));
 		}
-		it = gini.begin();
-		this->threshold = it->second;
+		//TODO:Artur, fix gini bug (gini.size()==0)
+		if (gini.size() == 0)
+			this->threshold = 0;
+		else{
+			it = gini.begin();
+			this->threshold = it->second;
+		}
 	}
 
 	void ObliqueNode::learn(

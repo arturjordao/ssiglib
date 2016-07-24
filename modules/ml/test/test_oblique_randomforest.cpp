@@ -47,41 +47,37 @@
 #include <ssiglib/ml/pls_classifier.hpp>
 #include <ssiglib/ml/oblique_decision_tree.hpp>
 
-TEST(OBLIQUENODE, BinaryClassification) {
-	cv::Mat_<int> labels = (cv::Mat_<int>(10, 1) << 1, 1, 1, 1, 1,  -1, -1, -1, -1, -1);
-	cv::Mat_<float> inp =
-		(cv::Mat_<float>(10, 10) <<
-		1, 2, 2, 2, 4, 6, 2, 9, 10, 11,
-		102, 100, 104, 105, 99, 101, 99, 12, 19, 100,
-		1, 2, 2, 4 , 9, 10, 8, 8, 10, 9,
-		10, 22, 32, 54, 70, 10, 8, 80, 90, 9,
-		35, 27, 2, 40, 69, 10, 88, 8, 10, 89,
-		11, 21, 112, 34, 89, 10, 8, 48, 1, 78,
-		1, 22, 2, 2, 43, 36, 2, 9, 10, 31,
-		102, 100, 14, 115, 99, 101, 99, 12, 19, 200,
-		12, 10, 14, 15, 79, 11, 78, 12, 19, 12,
-		122, 19, 14, 15, 7, 3, 2, 1, 2, 1);
-	
+TEST(OBLIQUENODE, BinaryClassification) {	
+	cv::Mat_<float> inp;
+	cv::Mat labels, dataPos, dataNeg;
+
+	dataPos.create(20, 50, CV_32F);
+	cv::randn(dataPos, cv::Mat::zeros(1, 1, CV_32F), cv::Mat::ones(1, 1, CV_32F));
+	inp.push_back(dataPos);
+	labels.push_back(cv::Mat(std::vector<int>(dataPos.rows, 1), false));
+
+
+	dataNeg.create(40, 50, CV_32F);
+	cv::randn(dataNeg, cv::Mat::zeros(1, 1, CV_32F), cv::Mat::ones(1, 1, CV_32F));
+	inp.push_back(dataNeg);
+	labels.push_back(cv::Mat(std::vector<int>(dataNeg.rows, -1), false));
+
 	auto classifierType = ssig::PLSClassifier::create();
-	classifierType->setNumberOfFactors(1);
+	classifierType->setNumberOfFactors(2);
 
 	auto classifier = ssig::ObliqueDTClassifier::create();
 	classifier->setClassifier(classifierType);
+	classifier->setMTry(10);
 	classifier->setDepth(2);
-	classifier->setFSType("noPermutation");
+	classifier->setFSType(ssig::ObliqueDTClassifier::FeatureSelctionType::RANDOM);
 	classifier->learn(inp, labels);
 	
-
-	cv::Mat_<float> query1 = (cv::Mat_<float>(1, 2) << 1, 2);
-	cv::Mat_<float> query2 = (cv::Mat_<float>(1, 2) << 100, 103);
-
+	
+	cv::Mat query1;
 	cv::Mat_<float> resp;
-	/*classifier->predict(query1, resp);
-	auto ordering = classifier->getLabelsOrdering();
-	int idx = ordering[1];
-	EXPECT_GE(resp[0][idx], 0);
-	classifier->predict(query2, resp);
-	idx = ordering[-1];
-	EXPECT_GE(resp[0][idx], 0);*/
+
+	query1.create(1, 50, CV_32F);
+	cv::randn(query1, cv::Mat::zeros(1, 1, CV_32F), cv::Mat::ones(1, 1, CV_32F));
+	classifier->predict(query1, resp);
 }
 
