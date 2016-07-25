@@ -39,48 +39,68 @@
 *  POSSIBILITY OF SUCH DAMAGE.
 *****************************************************************************L*/
 
-#include <gtest/gtest.h>
-// opencv
-#include <opencv2/core/ocl.hpp>
-#include <opencv2/core.hpp>
+
+#ifndef _SSIG_ML_OBLIQUERANDOMFOREST_HPP_
+#define _SSIG_ML_OBLIQUERANDOMFOREST_HPP_
+// c++
+#include <memory>
 // ssiglib
-#include <ssiglib/ml/pls_classifier.hpp>
-#include <ssiglib/ml/oblique_decision_tree.hpp>
-#include <ssiglib/ml/oblique_random_forest.hpp>
+#include "oblique_decision_tree.hpp"
+#include "classification.hpp"
+#include "multiclass.hpp"
 
-TEST(OBLIQUENODE, BinaryClassification) {	
-	cv::Mat_<float> inp;
-	cv::Mat labels, dataPos, dataNeg;
+namespace ssig {
 
-	dataPos.create(20, 50, CV_32F);
-	cv::randn(dataPos, cv::Mat::zeros(1, 1, CV_32F), cv::Mat::ones(1, 1, CV_32F));
-	inp.push_back(dataPos);
-	labels.push_back(cv::Mat(std::vector<int>(dataPos.rows, 1), false));
+	class ObliqueRF : public Classifier {
+		virtual void addLabels(const cv::Mat& labels);
+
+	public:
+		ML_EXPORT static cv::Ptr<ObliqueRF> create();
+		ML_EXPORT virtual ~ObliqueRF(void);
+
+		ML_EXPORT int predict(
+			const cv::Mat_<float>& inp,
+			cv::Mat_<float>& resp) const override;
+		ML_EXPORT void learn(
+			const cv::Mat_<float>& input,
+			const cv::Mat& labels) override;
+		ML_EXPORT cv::Mat getLabels() const override;
+		ML_EXPORT std::unordered_map<int, int> getLabelsOrdering() const override;
+		ML_EXPORT bool empty() const override;
+		ML_EXPORT bool isTrained() const override;
+		ML_EXPORT bool isClassifier() const override;
+
+		ML_EXPORT void read(const cv::FileNode& fn) override;
+		ML_EXPORT void write(cv::FileStorage& fs) const override;
+
+		ML_EXPORT Classifier* clone() const override;
+
+		ML_EXPORT int getNumberOfFactors() const;
+
+		ML_EXPORT void setObliqueTree(ssig::ObliqueDTClassifier);
+
+		ML_EXPORT void setNumberTree(int n);
+
+		ML_EXPORT int getNumberTree();
+
+	protected:
+		ML_EXPORT ObliqueRF(void);
+		ML_EXPORT ObliqueRF(const ObliqueRF& rhs);
+
+	private:
+		// private members
+		std::vector<ssig::ObliqueDTClassifier> trees;
+		int nTree = 1;
 
 
-	dataNeg.create(40, 50, CV_32F);
-	cv::randn(dataNeg, cv::Mat::zeros(1, 1, CV_32F), cv::Mat::ones(1, 1, CV_32F));
-	inp.push_back(dataNeg);
-	labels.push_back(cv::Mat(std::vector<int>(dataNeg.rows, -1), false));
+		bool mTrained = false;
+		bool mIsMulticlass = false;
 
-	auto classifierType = ssig::PLSClassifier::create();
-	classifierType->setNumberOfFactors(2);
+		void setClassWeights(const int classLabel, const float weight) override;
+	};
 
-	auto classifier = ssig::ObliqueDTClassifier::create();
-	classifier->setClassifier(classifierType);
-	classifier->setMTry(10);
-	classifier->setDepth(2);
-	classifier->setFSType(ssig::ObliqueDTClassifier::FeatureSelctionType::RANDOM);
-	classifier->learn(inp, labels);
-	
+}  // namespace ssig
 
-	auto oRF = ssig::ObliqueRF::create();
-	
-	cv::Mat query1;
-	cv::Mat_<float> resp;
+#endif  // !_SSIG_ML_ObliqueRF_HPP_
 
-	query1.create(1, 50, CV_32F);
-	cv::randn(query1, cv::Mat::zeros(1, 1, CV_32F), cv::Mat::ones(1, 1, CV_32F));
-	classifier->predict(query1, resp);
-}
 
