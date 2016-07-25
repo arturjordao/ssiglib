@@ -49,6 +49,8 @@ namespace ssig {
 
 	ObliqueNode::ObliqueNode() {
 		// Constructor
+		children[0] = NULL;
+		children[1] = NULL;
 	}
 
 	ObliqueNode::~ObliqueNode() {
