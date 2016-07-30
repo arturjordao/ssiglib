@@ -55,7 +55,7 @@ namespace ssig {
 		virtual void addLabels(const cv::Mat& labels);
 
 	public:
-		enum FeatureSelctionType {
+		enum FeatureSelectionType {
 			NOPERMUTATION,
 			RANDOM,
 			BLOCK,
@@ -104,7 +104,7 @@ namespace ssig {
 		ML_EXPORT ObliqueDTClassifier(const ObliqueDTClassifier& rhs);
 
 	private:
-		bool nodePruning;
+		bool nodePruning = false;
 		//Number of features for each node
 		int mtry;	
 		//Controls the feature block (size of mtry) collected

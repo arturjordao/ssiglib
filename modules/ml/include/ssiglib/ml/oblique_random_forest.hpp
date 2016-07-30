@@ -77,7 +77,7 @@ namespace ssig {
 
 		ML_EXPORT int getNumberOfFactors() const;
 
-		ML_EXPORT void setObliqueTree(ssig::ObliqueDTClassifier);
+		ML_EXPORT void setObliqueTree(ssig::ObliqueDTClassifier *tree);
 
 		ML_EXPORT void setNumberTree(int n);
 
@@ -89,7 +89,8 @@ namespace ssig {
 
 	private:
 		// private members
-		std::vector<ssig::ObliqueDTClassifier> trees;
+		std::vector<cv::Ptr<ssig::ObliqueDTClassifier>> trees;
+		ssig::ObliqueDTClassifier *treeTemplate;
 		int nTree = 1;
 
 

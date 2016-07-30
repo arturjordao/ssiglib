@@ -119,7 +119,7 @@ namespace ssig {
 		this->featuresIdx = std::vector<int>(numberOfFeatures);
 		std::generate(featuresIdx.begin(), featuresIdx.end(), [&]{ return n++; });
 
-		if (fsType == FeatureSelctionType::RANDOM)
+		if (fsType == FeatureSelectionType::RANDOM)
 			std::random_shuffle(this->featuresIdx.begin(), this->featuresIdx.end());
 
 	}
@@ -234,6 +234,10 @@ namespace ssig {
 		std::vector<int> subSpace;
 		subSpace.assign(this->featuresIdx.begin() + index, featuresIdx.begin() + index + mtry);
 		index += mtry;
+
+		if (this->featuresIdx.size() <= index + mtry)
+			prepareFeatures();
+
 		return subSpace;
 	}
 
@@ -276,7 +280,10 @@ namespace ssig {
 	Classifier* ObliqueDTClassifier::clone() const {
 		auto copy = new ObliqueDTClassifier;
 
-		//copy->setNumberOfFactors(getNumberOfFactors());
+		copy->setMTry(this->mtry);
+		copy->setFSType(this->fsType);
+		copy->setClassifier(this->classifier);
+		copy->setDepth(this->maxDepth);
 
 		return copy;
 	}

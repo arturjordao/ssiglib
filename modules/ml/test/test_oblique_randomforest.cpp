@@ -71,16 +71,19 @@ TEST(OBLIQUENODE, BinaryClassification) {
 	classifier->setMTry(10);
 	classifier->setDepth(2);
 	classifier->setFSType(ssig::ObliqueDTClassifier::FeatureSelctionType::RANDOM);
-	classifier->learn(inp, labels);
+	//classifier->learn(inp, labels);
 	
 
 	auto oRF = ssig::ObliqueRF::create();
+	oRF->setNumberTree(3);
+	oRF->setObliqueTree(classifier);
+	oRF->learn(inp, labels);
 	
 	cv::Mat query1;
 	cv::Mat_<float> resp;
 
 	query1.create(1, 50, CV_32F);
 	cv::randn(query1, cv::Mat::zeros(1, 1, CV_32F), cv::Mat::ones(1, 1, CV_32F));
-	classifier->predict(query1, resp);
+	oRF->predict(query1, resp);
 }
 

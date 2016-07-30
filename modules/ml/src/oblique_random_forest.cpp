@@ -63,37 +63,32 @@ namespace ssig {
 		const cv::Mat_<float>& inp,
 		cv::Mat_<float>& resp) const {
 
-		mPls->predict(inp, resp);
+		float response;
+		cv::Mat_<float> treeResp;
+		resp.create(inp.rows, 1);
 
-		cv::Mat_<float> r;
-		r.create(inp.rows, mYColumns);
+		for (int i = 0; i < inp.rows; i++){
 
-		int labelIdx = -1;
-		if (!mIsMulticlass) {
-			for (int row = 0; row < inp.rows; ++row) {
-				r[row][0] = resp[row][0];
-				r[row][1] = -1 * resp[row][0];
+			response = 0.0f;
+			for (int tree = 0; tree < trees.size(); tree++){
+
+				trees[i]->predict(inp.row(i), treeResp);
+				response += treeResp[0][0];
 			}
-			labelIdx = resp[0][0] > 0 ? 1 : -1;
-			resp = r;
+			response = response / (float)trees.size();
+			resp[i][0] = response;
 		}
-		return inp.rows > 1 || mIsMulticlass ? 0 : labelIdx;
+		return 1;
 	}
 
 	void ObliqueRF::addLabels(const cv::Mat& labels) {
-		if (labels.cols > 1) {
-			// multiclass
-			mYColumns = labels.cols;
-			mIsMulticlass = true;
-		}
-		else {
-			std::unordered_set<int> labelsSet;
-			for (int r = 0; r < labels.rows; ++r)
-				labelsSet.insert(labels.at<int>(r, 0));
-			if (labelsSet.size() > 2) {
-				std::runtime_error(std::string("Number of Labels is greater than 2.\n") +
-					"This is a binary classifier!\n");
-			}
+
+		std::unordered_set<int> labelsSet;
+		for (int r = 0; r < labels.rows; ++r)
+			labelsSet.insert(labels.at<int>(r, 0));
+		if (labelsSet.size() > 2) {
+			std::runtime_error(std::string("Number of Labels is greater than 2.\n") +
+				"This is a binary classifier!\n");
 		}
 		mLabels = labels;
 	}
@@ -112,9 +107,14 @@ namespace ssig {
 		cv::Mat_<float> l;
 		mLabels.convertTo(l, CV_32F);
 		auto X = input.clone();
-		mPls = std::unique_ptr<PLS>(new PLS());
-		mPls->learn(X, l, mNumberOfFactors);
-		
+
+		cv::Ptr<ssig::ObliqueDTClassifier> tree;
+		for (int i = 0; i < nTree; i++){
+
+			tree = (ssig::ObliqueDTClassifier*)treeTemplate->clone();
+			tree->learn(input, labels);
+			trees.push_back(tree);
+		}
 
 		X.release();
 		l.release();
@@ -126,18 +126,13 @@ namespace ssig {
 	}
 
 	std::unordered_map<int, int> ObliqueRF::getLabelsOrdering() const {
-		if (mIsMulticlass) {
-			std::unordered_map<int, int> ans;
-			for (int i = 0; i < mYColumns; ++i) {
-				ans[i] = i;
-			}
-			return ans;
-		}
+		
 		return{ { 1, 0 }, { -1, 1 } };
 	}
 
 	bool ObliqueRF::empty() const {
-		return static_cast<bool>(mPls);
+
+		return trees.size()==0 ? true:false;
 	}
 
 	bool ObliqueRF::isTrained() const {
@@ -167,8 +162,9 @@ namespace ssig {
 		return copy;
 	}
 
-	void ObliqueRF::setObliqueTree(ssig::ObliqueDTClassifier){
+	void ObliqueRF::setObliqueTree(ssig::ObliqueDTClassifier *tree){
 
+		this->treeTemplate = tree;
 	}
 
 	int ObliqueRF::getNumberTree(){
