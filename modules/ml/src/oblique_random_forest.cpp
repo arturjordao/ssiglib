@@ -146,12 +146,46 @@ namespace ssig {
 	void ObliqueRF::setClassWeights(const int classLabel, const float weight) {}
 
 	void ObliqueRF::read(const cv::FileNode& fn) {
-		/*mPls = std::unique_ptr<PLS>(new PLS());
-		mPls->load(fn);*/
+
+		cv::FileNode n, n2;
+		cv::Ptr<ssig::ObliqueDTClassifier> tree;
+		int i;
+
+		n = fn["RandomForest"];
+		n["ntree"] >> nTree;
+		//n["percSamples"] >> percSamples;
+
+		for (i = 0; i < nTree; i++) {
+			n2 = n["tree" + std::to_string(i)];
+
+			tree =  ssig::ObliqueDTClassifier::create();
+
+			tree->read(n2);
+
+			trees.push_back(tree);
+		}
+		//load_(n);
 	}
 
-	void ObliqueRF::write(cv::FileStorage& fs) const {
-		//mPls->save(fs);
+	void ObliqueRF::write(cv::FileStorage& fs) const {			
+		fs << "RandomForest" << "{";
+		//save_(storage);  // save parameters that are in the Classification 
+
+		fs << "ntree" << (int)trees.size();
+		//fs << "percSamples" << percSamples;
+
+		for (int i = 0; i < trees.size(); i++) {
+
+			fs << "tree" + std::to_string(i) << "{";
+
+			// save PLS model
+			trees[i]->write(fs);
+
+			// return the level
+			fs << "}";
+		}
+
+		fs << "}";
 	}
 
 	Classifier* ObliqueRF::clone() const {

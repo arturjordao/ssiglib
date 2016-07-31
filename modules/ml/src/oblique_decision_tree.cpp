@@ -119,7 +119,7 @@ namespace ssig {
 		this->featuresIdx = std::vector<int>(numberOfFeatures);
 		std::generate(featuresIdx.begin(), featuresIdx.end(), [&]{ return n++; });
 
-		if (fsType == FeatureSelectionType::RANDOM)
+		if (fsType == FeatureSelectionType::RANDOM_REPOSITION)
 			std::random_shuffle(this->featuresIdx.begin(), this->featuresIdx.end());
 
 	}
@@ -232,8 +232,16 @@ namespace ssig {
 	std::vector<int> ObliqueDTClassifier::nextFeatures(){
 
 		std::vector<int> subSpace;
-		subSpace.assign(this->featuresIdx.begin() + index, featuresIdx.begin() + index + mtry);
-		index += mtry;
+		
+		if (fsType == FeatureSelectionType::RANDOM_FIXED){
+			auto tmp = this->featuresIdx;
+			std::random_shuffle(tmp.begin(), tmp.end());
+			subSpace.assign(tmp.begin(), tmp.begin() + mtry);
+		}
+		else{
+			subSpace.assign(this->featuresIdx.begin() + index, featuresIdx.begin() + index + mtry);
+			index += mtry;
+		}
 
 		if (this->featuresIdx.size() <= index + mtry)
 			prepareFeatures();
@@ -268,12 +276,58 @@ namespace ssig {
 	}
 
 	void ObliqueDTClassifier::read(const cv::FileNode& fn) {
-		/*mPls = std::unique_ptr<PLS>(new PLS());
-		mPls->load(fn);*/
+		cv::FileNode n, n2;
+		ssig::ObliqueNode *node;
+
+		node = new ssig::ObliqueNode();
+
+		n = fn["ObliqueDT"];
+		n["mtry"] >> mtry;
+		n["nodePruning"] >> nodePruning;
+		n2 = n["root"];
+		if (n2.begin() != n2.end()) {
+			node->read(n2);
+			this->root = node;
+
+			//this->recursiveLoad(n2, storage, DTnode);
+		}
+	}
+
+	void ObliqueDTClassifier::recursiveSave(cv::FileStorage &storage,
+		ssig::ObliqueNode *node) const {
+
+		ssig::ObliqueNode *n;
+
+		if (*node->getChild(0) != NULL) {
+			storage << "left" << "{";
+			n = *node->getChild(0);
+			n->save(storage);
+			this->recursiveSave(storage, *node->getChild(0));
+			storage << "}";
+		}
+
+		if (*node->getChild(1) != NULL) {
+			storage << "right" << "{";
+			n = *node->getChild(1);
+			n->save(storage);
+			this->recursiveSave(storage, *node->getChild(1));
+			storage << "}";
+		}
 	}
 
 	void ObliqueDTClassifier::write(cv::FileStorage& fs) const {
-		//mPls->save(fs);
+
+		fs << "ObliqueDT" << "{";
+		fs << "mtry" << mtry;
+		fs << "nodePruning" << nodePruning;
+		fs << "root" << "{";
+		root->save(fs);
+
+		recursiveSave(fs, root);
+
+		fs << "}";
+
+		fs << "}";
 	}
 
 	/*Todo:Artur poderia dar clone no classifier*/

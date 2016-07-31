@@ -70,7 +70,7 @@ TEST(OBLIQUENODE, BinaryClassification) {
 	classifier->setClassifier(classifierType);
 	classifier->setMTry(10);
 	classifier->setDepth(2);
-	classifier->setFSType(ssig::ObliqueDTClassifier::FeatureSelctionType::RANDOM);
+	classifier->setFSType(ssig::ObliqueDTClassifier::FeatureSelectionType::RANDOM_FIXED);
 	//classifier->learn(inp, labels);
 	
 
@@ -85,5 +85,8 @@ TEST(OBLIQUENODE, BinaryClassification) {
 	query1.create(1, 50, CV_32F);
 	cv::randn(query1, cv::Mat::zeros(1, 1, CV_32F), cv::Mat::ones(1, 1, CV_32F));
 	oRF->predict(query1, resp);
+	//oRF->save("tete.yml","root");
+	oRF->load("tete.yml", "root");
+
 }
 

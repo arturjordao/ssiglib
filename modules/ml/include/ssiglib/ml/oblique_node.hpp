@@ -63,7 +63,7 @@ namespace ssig {
 			const cv::Mat& labels);
 
 		ML_EXPORT void read(const cv::FileNode& fn);
-		//ML_EXPORT void write(cv::FileStorage& fs);
+		ML_EXPORT void save(cv::FileStorage& storage) const;
 
 		void setNSamples(int pos, int neg);
 		void setDepth(int depth);

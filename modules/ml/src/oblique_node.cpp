@@ -221,11 +221,26 @@ namespace ssig {
 	}
 
 	void ObliqueNode::read(const cv::FileNode& fn) {
-		/*mPls = std::unique_ptr<PLS>(new PLS());
-		mPls->load(fn);*/
+
+		cv::Mat_<int> indices;
+		cv::FileNode n;
+		size_t i;
+		std::string name;
+		std::string type;
+
+		n = fn["classifier"];
+		n["name"] >> name;
+		n["type"] >> type;
+		classifier->read(fn);
+
+		fn["col_index"] >> indices;
+		fn["threshold"] >> threshold;
+
+		for (int i = 0; i < indices.rows; i++)
+			col_index.push_back(indices[(int)i][0]);
 	}
 
-	//void ObliqueNode::write(cv::FileStorage& fs) const {
-	//	/*mPls->save(fs);*/
-	//}
+	void ObliqueNode::save(cv::FileStorage& storage) const {
+		classifier->write(storage);
+	}
 }  // namespace ssig

@@ -57,7 +57,8 @@ namespace ssig {
 	public:
 		enum FeatureSelectionType {
 			NOPERMUTATION,
-			RANDOM,
+			RANDOM_REPOSITION,
+			RANDOM_FIXED,
 			BLOCK,
 		};
 		ML_EXPORT static cv::Ptr<ObliqueDTClassifier> create();
@@ -82,8 +83,8 @@ namespace ssig {
 		ML_EXPORT bool isClassifier() const override;
 
 		ML_EXPORT void read(const cv::FileNode& fn) override;
-		ML_EXPORT void write(cv::FileStorage& fs) const override;
-
+		ML_EXPORT void write(cv::FileStorage& fs) const override;//TODO: da erro com o const
+		//ML_EXPORT void write(cv::FileStorage& fs);
 		ML_EXPORT Classifier* clone() const override;
 
 		ML_EXPORT void setClassifier(ssig::Classifier *classifier);
@@ -128,6 +129,8 @@ namespace ssig {
 			const cv::Mat_<float> &X,
 			cv::Mat_<int> &responses,
 			int delph);
+		void recursiveSave(cv::FileStorage &storage,
+			ssig::ObliqueNode *node) const;
 		void prepareFeatures();
 		std::vector<int> nextFeatures();
 	};
