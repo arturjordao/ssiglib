@@ -83,8 +83,8 @@ namespace ssig {
 		ML_EXPORT bool isClassifier() const override;
 
 		ML_EXPORT void read(const cv::FileNode& fn) override;
-		ML_EXPORT void write(cv::FileStorage& fs) const override;//TODO: da erro com o const
-		//ML_EXPORT void write(cv::FileStorage& fs);
+		ML_EXPORT void write(cv::FileStorage& fs) const override;
+		
 		ML_EXPORT Classifier* clone() const override;
 
 		ML_EXPORT void setClassifier(ssig::Classifier *classifier);
@@ -106,20 +106,17 @@ namespace ssig {
 
 	private:
 		bool nodePruning = false;
-		//Number of features for each node
 		int mtry;	
-		//Controls the feature block (size of mtry) collected
 		int blockMtry;
 		int numberOfFeatures;
 		int nodeIds;
 		int fsType;
-		//Depth of tree, if -1 the depth is 'infinity'
 		int maxDepth;
 		float classPercentage;
 
 		std::vector<int> featuresIdx;
 		int index;
-		//Tree root
+		
 		ssig::ObliqueNode *root;							
 		ssig::Classifier *classifier;
 
@@ -131,6 +128,8 @@ namespace ssig {
 			int delph);
 		void recursiveSave(cv::FileStorage &storage,
 			ssig::ObliqueNode *node) const;
+		void recursiveLoad(cv::FileNode &node,
+			ssig::ObliqueNode *parent) const;
 		void prepareFeatures();
 		std::vector<int> nextFeatures();
 	};

@@ -73,33 +73,39 @@ namespace ssig {
 		return &children[id];
 	}
 
+	void ObliqueNode::setChild(int id, ObliqueNode *node) {
+		this->children[id] = node;
+	}
+
 	int ObliqueNode::getDepth(){
 		return this->depth;
 	}
+
+	void ObliqueNode::setDepth(int depth){
+		this->depth = depth;
+	}
+
 	void ObliqueNode::setNSamples(int pos, int neg){
 		this->neg = neg;
 		this->pos = pos;
 	}
-	void ObliqueNode::setDepth(int depth){
-		this->depth = depth;
-	}
-	void ObliqueNode::createModel(
+
+	void ObliqueNode::learn(
 		const cv::Mat_<float> &X,
 		cv::Mat_<int> &responses,
 		std::vector<int> &col_index){
 		cv::Mat_<float> Xtmp, ret, pos, neg;
 		std::vector<float> v0;
 		std::vector<float> v1;
-		int i, idxPos;
 
 		pos.create(0, X.cols);
 		neg.create(0, X.cols);
 		Xtmp.create(X.rows, (int)col_index.size());
-		//Select the features before running the classification
-		for (i = 0; i < col_index.size(); i++)
+		
+		for (int i = 0; i < col_index.size(); i++)
 			X.col((int)col_index[(int)i]).copyTo(Xtmp.col((int)i));
 
-		for (i = 0; i < responses.rows; i++){
+		for (int i = 0; i < responses.rows; i++){
 
 			if (responses[(int)i][0] == 1)
 				pos.push_back(Xtmp.row(i));
@@ -107,15 +113,12 @@ namespace ssig {
 				neg.push_back(Xtmp.row(i));
 		}
 
-		/*classifier->addSamples(pos, "1");
-		classifier->addSamples(neg, "0");*/
 		classifier->learn(Xtmp,responses);
 
 		this->col_index = col_index;
 
-		idxPos = 0;//classifier->retrieveResponseClassIDPosition("1");
-		// regress each sample and compute the threshold
-		for (i = 0; i < X.rows; i++) {
+		for (int i = 0; i < X.rows; i++) {
+
 			classifier->predict(Xtmp.row(i), ret);
 			if (responses(i, 0) == -1)
 				v0.push_back(ret(0, 0));
@@ -130,21 +133,14 @@ namespace ssig {
 		float &resp) {
 		cv::Mat_<float> ret;
 		cv::Mat_<float> Xtmp;
-		int i;
-
-		//if (classifier == NULL)//if (model == NULL)
-		//	ReportError("Classifier model must be created first - call DT_PLS_Node::createModel()");
 
 		Xtmp.create(1, (int)col_index.size());
 
-		//Select the features of this node before running the projection
-		for (i = 0; i < col_index.size(); i++)
+		for (int i = 0; i < col_index.size(); i++)
 			Xtmp[0][i] = X[0][(int)col_index[i]];
 
-		//Project sample
 		classifier->predict(Xtmp, ret);
 		resp = ret(0,0);
-		//According to the threshold, return 0 or 1		
 		if (ret(0, 0) >= this->threshold)
 			return 1;
 
@@ -160,7 +156,6 @@ namespace ssig {
 		size_t i, j;
 		float gini1, gini2;
 		std::map<float, float>::iterator it;
-
 
 		n = (float)(v0.size() + v1.size());
 
@@ -202,45 +197,32 @@ namespace ssig {
 		}
 	}
 
-	void ObliqueNode::learn(
-		const cv::Mat_<float>& input,
-		const cv::Mat& labels) {
-		//// TODO(Ricardo): assert labels between -1 and 1
-		//addLabels(labels);
-		//assert(!labels.empty());
-
-		//cv::Mat_<float> l;
-		//mLabels.convertTo(l, CV_32F);
-		//auto X = input.clone();
-		//mPls = std::unique_ptr<PLS>(new PLS());
-		//mPls->learn(X, l, mNumberOfFactors);
-
-		//X.release();
-		//l.release();
-		//mTrained = true;
-	}
-
 	void ObliqueNode::read(const cv::FileNode& fn) {
 
 		cv::Mat_<int> indices;
 		cv::FileNode n;
-		size_t i;
 		std::string name;
 		std::string type;
 
-		n = fn["classifier"];
-		n["name"] >> name;
-		n["type"] >> type;
 		classifier->read(fn);
-
 		fn["col_index"] >> indices;
 		fn["threshold"] >> threshold;
+		fn["id"] >> id;
 
 		for (int i = 0; i < indices.rows; i++)
 			col_index.push_back(indices[(int)i][0]);
 	}
 
-	void ObliqueNode::save(cv::FileStorage& storage) const {
+	void ObliqueNode::write(cv::FileStorage& storage) const {
+		cv::Mat_<int> indices;
+
+		indices.create((int)col_index.size(), 1);
+		for (int i = 0; i < col_index.size(); i++)
+			indices[i][0] = col_index[i];
+
+		storage << "id" << id;
+		storage << "col_index" << indices;
+		storage << "threshold" << threshold;
 		classifier->write(storage);
 	}
 }  // namespace ssig

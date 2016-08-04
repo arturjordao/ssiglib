@@ -66,7 +66,7 @@ namespace ssig {
 		ObliqueNode *node = this->root;
 		float resp, acc;
 		bool prune = false;
-		int ret;
+		int ret, labelIdx = -1;
 		int level = 1;/*Used to compute the mean*/
 
 		acc = 0;
@@ -95,7 +95,8 @@ namespace ssig {
 
 		response.create(1, 1);
 		response[0][0] = resp;
-		return -1;
+		labelIdx = response[0][0] > 0 ? 1 : -1;
+		return labelIdx;
 	}
 
 	void ObliqueDTClassifier::addLabels(const cv::Mat& labels) {
@@ -160,14 +161,13 @@ namespace ssig {
 		ssig::ObliqueNode *node, **left, **right;
 		int class0 = 0, class1 = 0;
 		float resp;
-		//Stop criterion 1: Number of samples < 5
+		
 		if (samplesIdx.size() < 5)
 			return;
-		// Stop criterion 2: Depth termination condition
+
 		if (maxDepth != -1 && depth > maxDepth)
 			return;
 
-		//Select samples according to samplesIdx
 		for (int i = 0; i < samplesIdx.size(); i++) {
 			Xselect.push_back(X.row(samplesIdx[i]));
 			YSelect.push_back(responses.row(samplesIdx[i]));
@@ -177,29 +177,21 @@ namespace ssig {
 				class1++;
 		}
 
-		//Stop criterion 3: Some class is below of detemined percetual
 		float percentualClass0 = (float)class0 / samplesIdx.size();
-
-		//TODO: Artur, 0.99 must be a parameter in yml
-		if (percentualClass0 ==0 || 1-percentualClass0==0){
-			//if (depth == 0)/*To avoid error(does not have col_index) in the save method*/
-			//	ReportError("Inconsistent number of classes at the depth 0");
+		if (percentualClass0 == 0 || 1-percentualClass0 ==0){
 			return;
 		}
 
 
 		feat_idx = nextFeatures();
 
-		//Build model
-		//node = new DT_PLS_Node(nodeIds++);
 		node = new ssig::ObliqueNode();
 		node->setNSamples(class1, class0);
 		node->setDepth(depth);
 		node->setClassifier(this->classifier);
 
-		node->createModel(Xselect, YSelect, feat_idx);
+		node->learn(Xselect, YSelect, feat_idx);
 
-		//Classify samples to generate new nodes
 		for (int i = 0; i < samplesIdx.size(); i++) {
 			if (node->projectFeatures(X.row(samplesIdx[i]), resp) == 0)
 				samplesIdxLeft.push_back(samplesIdx[i]);
@@ -207,13 +199,10 @@ namespace ssig {
 				samplesIdxRight.push_back(samplesIdx[i]);
 		}
 
-		//Stop criterion 4: Does not propagates anything to some side (Avoids equal models).
 		if (samplesIdxLeft.size() == 0 || samplesIdxRight.size() == 0)
 			return;
 
 		*root = node;
-
-		//Call recursively
 		left = node->getChild(0);
 		right = node->getChild(1);
 
@@ -230,9 +219,8 @@ namespace ssig {
 	}
 
 	std::vector<int> ObliqueDTClassifier::nextFeatures(){
-
 		std::vector<int> subSpace;
-		
+
 		if (fsType == FeatureSelectionType::RANDOM_FIXED){
 			auto tmp = this->featuresIdx;
 			std::random_shuffle(tmp.begin(), tmp.end());
@@ -250,7 +238,7 @@ namespace ssig {
 	}
 
 	bool ObliqueDTClassifier::empty() const {
-		return false;//return static_cast<bool>(mPls);
+		return static_cast<bool>(root);
 	}
 
 	bool ObliqueDTClassifier::isTrained() const {
@@ -286,10 +274,11 @@ namespace ssig {
 		n["nodePruning"] >> nodePruning;
 		n2 = n["root"];
 		if (n2.begin() != n2.end()) {
+			node->setClassifier(this->classifier);
 			node->read(n2);
 			this->root = node;
 
-			//this->recursiveLoad(n2, storage, DTnode);
+			this->recursiveLoad(n2, node);
 		}
 	}
 
@@ -301,7 +290,7 @@ namespace ssig {
 		if (*node->getChild(0) != NULL) {
 			storage << "left" << "{";
 			n = *node->getChild(0);
-			n->save(storage);
+			n->write(storage);
 			this->recursiveSave(storage, *node->getChild(0));
 			storage << "}";
 		}
@@ -309,10 +298,39 @@ namespace ssig {
 		if (*node->getChild(1) != NULL) {
 			storage << "right" << "{";
 			n = *node->getChild(1);
-			n->save(storage);
+			n->write(storage);
 			this->recursiveSave(storage, *node->getChild(1));
 			storage << "}";
 		}
+	}
+
+	void ObliqueDTClassifier::recursiveLoad(cv::FileNode &node,
+		ssig::ObliqueNode *parent) const{
+
+		ObliqueNode *dtNode;
+		cv::FileNode n;
+
+		if (parent == NULL)
+			return;
+
+		n = node["left"];
+		if (n.begin() != n.end()) {
+			dtNode = new ObliqueNode();
+			dtNode->setClassifier(classifier);
+			dtNode->read(n);
+			parent->setChild(0,dtNode);
+			recursiveLoad(n, dtNode);
+		}
+
+		n = node["right"];
+		if (n.begin() != n.end()) {
+			dtNode = new ObliqueNode();
+			dtNode->setClassifier(classifier);
+			dtNode->read(n);
+			parent->setChild(1,dtNode);
+			recursiveLoad(n, dtNode);
+		}
+
 	}
 
 	void ObliqueDTClassifier::write(cv::FileStorage& fs) const {
@@ -321,7 +339,7 @@ namespace ssig {
 		fs << "mtry" << mtry;
 		fs << "nodePruning" << nodePruning;
 		fs << "root" << "{";
-		root->save(fs);
+		root->write(fs);
 
 		recursiveSave(fs, root);
 
@@ -330,7 +348,6 @@ namespace ssig {
 		fs << "}";
 	}
 
-	/*Todo:Artur poderia dar clone no classifier*/
 	Classifier* ObliqueDTClassifier::clone() const {
 		auto copy = new ObliqueDTClassifier;
 
@@ -341,10 +358,6 @@ namespace ssig {
 
 		return copy;
 	}
-
-	/*int ObliqueDTClassifier::getNumberOfFactors() const {
-		return mNumberOfFactors;
-	}*/
 
 	void ObliqueDTClassifier::setClassifier(ssig::Classifier *classifier) {
 		this->classifier = classifier->clone();

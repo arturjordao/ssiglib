@@ -74,13 +74,12 @@ namespace ssig {
 		ML_EXPORT void write(cv::FileStorage& fs) const override;
 
 		ML_EXPORT Classifier* clone() const override;
-
-		ML_EXPORT int getNumberOfFactors() const;
-
 		ML_EXPORT void setObliqueTree(ssig::ObliqueDTClassifier *tree);
 
-		ML_EXPORT void setNumberTree(int n);
+		/*This method is required only to load the saved model*/
+		ML_EXPORT void setClassifier(cv::Ptr<ssig::Classifier> classifier);
 
+		ML_EXPORT void setNumberTree(int n);
 		ML_EXPORT int getNumberTree();
 
 	protected:
@@ -91,12 +90,11 @@ namespace ssig {
 		// private members
 		std::vector<cv::Ptr<ssig::ObliqueDTClassifier>> trees;
 		ssig::ObliqueDTClassifier *treeTemplate;
+		cv::Ptr<ssig::Classifier>  classifierTemplate;
 		int nTree = 1;
-
 
 		bool mTrained = false;
 		bool mIsMulticlass = false;
-
 		void setClassWeights(const int classLabel, const float weight) override;
 	};
 

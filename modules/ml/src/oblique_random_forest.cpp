@@ -63,10 +63,11 @@ namespace ssig {
 		const cv::Mat_<float>& inp,
 		cv::Mat_<float>& resp) const {
 
+		int labelIdx = -1;
 		float response;
 		cv::Mat_<float> treeResp;
 		resp.create(inp.rows, 1);
-
+		/*TODO:Parallelize that*/
 		for (int i = 0; i < inp.rows; i++){
 
 			response = 0.0f;
@@ -78,7 +79,8 @@ namespace ssig {
 			response = response / (float)trees.size();
 			resp[i][0] = response;
 		}
-		return 1;
+		labelIdx = resp[0][0] > 0 ? 1 : -1;
+		return labelIdx;
 	}
 
 	void ObliqueRF::addLabels(const cv::Mat& labels) {
@@ -131,7 +133,6 @@ namespace ssig {
 	}
 
 	bool ObliqueRF::empty() const {
-
 		return trees.size()==0 ? true:false;
 	}
 
@@ -153,52 +154,46 @@ namespace ssig {
 
 		n = fn["RandomForest"];
 		n["ntree"] >> nTree;
-		//n["percSamples"] >> percSamples;
 
 		for (i = 0; i < nTree; i++) {
 			n2 = n["tree" + std::to_string(i)];
 
 			tree =  ssig::ObliqueDTClassifier::create();
-
+			tree->setClassifier(this->classifierTemplate);
 			tree->read(n2);
 
 			trees.push_back(tree);
 		}
-		//load_(n);
 	}
 
 	void ObliqueRF::write(cv::FileStorage& fs) const {			
 		fs << "RandomForest" << "{";
-		//save_(storage);  // save parameters that are in the Classification 
-
 		fs << "ntree" << (int)trees.size();
-		//fs << "percSamples" << percSamples;
 
 		for (int i = 0; i < trees.size(); i++) {
 
 			fs << "tree" + std::to_string(i) << "{";
-
-			// save PLS model
 			trees[i]->write(fs);
-
-			// return the level
 			fs << "}";
 		}
-
 		fs << "}";
 	}
 
 	Classifier* ObliqueRF::clone() const {
-		auto copy = new ObliqueRF;
-
-		//copy->setNumberTree(getNumberTree());
-
+		auto copy = new ObliqueRF();
+		copy->setClassifier(classifierTemplate);
+		copy->setNumberTree(nTree);
+		copy->setObliqueTree(treeTemplate);
 		return copy;
 	}
 
 	void ObliqueRF::setObliqueTree(ssig::ObliqueDTClassifier *tree){
 
 		this->treeTemplate = tree;
+	}
+
+	void ObliqueRF::setClassifier(cv::Ptr<ssig::Classifier> classifier){
+		this->classifierTemplate = classifier;
 	}
 
 	int ObliqueRF::getNumberTree(){

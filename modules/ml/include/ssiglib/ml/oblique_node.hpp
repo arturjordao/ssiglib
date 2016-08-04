@@ -57,45 +57,33 @@ namespace ssig {
 		ML_EXPORT ObliqueNode(void);
 		ML_EXPORT static cv::Ptr<ObliqueNode> create();
 		ML_EXPORT virtual ~ObliqueNode(void);
-
-		ML_EXPORT void learn(
-			const cv::Mat_<float>& input,
-			const cv::Mat& labels);
-
 		ML_EXPORT void read(const cv::FileNode& fn);
-		ML_EXPORT void save(cv::FileStorage& storage) const;
+		ML_EXPORT void write(cv::FileStorage& storage) const;
 
 		void setNSamples(int pos, int neg);
+		int getDepth();
 		void setDepth(int depth);
 		void setClassifier(ssig::Classifier *classifier);
-		//Builds a classification model for thisnode
-		void createModel(const cv::Mat_<float> &X,
+		void learn(const cv::Mat_<float> &X,
 			cv::Mat_<int> &responses,
 			std::vector<int> &col_index);
-		//Projects a feature vector onto this node (return 0 to go to the left and 1 to go to the right)
 		int projectFeatures(const cv::Mat_<float> &X,
 			float &resp);
 		void computeThreshold(std::vector<float> &v0, std::vector<float> &v1);
 		ObliqueNode **getChild(int child);
-		int getDepth();
+		void setChild(int id, ssig::ObliqueNode *node);
 
 	protected:
 		ML_EXPORT ObliqueNode(const ObliqueNode& rhs);
 
 	private:
-		//Id of this node
 		int id;
-		//Amount of positive and negative samples of this node
 		int neg, pos;
-		//Depth of this node
 		int depth;
-		//Index of features used for this node
-		std::vector<int> col_index;	
-		//Decision threshold for this node
 		float threshold;			
-		//Children of this node
+		std::vector<int> col_index;
+
 		ObliqueNode *children[2];
-		
 		ssig::Classifier *classifier;
 	};
 
