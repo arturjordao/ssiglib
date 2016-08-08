@@ -39,62 +39,41 @@
 *  POSSIBILITY OF SUCH DAMAGE.
 *****************************************************************************L*/
 
-#ifndef _SSIG_ML_ORTHOGONAL_RANDOM_FOREST_HPP_
-#define _SSIG_ML_ORTHOGONAL_RANDOM_FOREST_HPP_
+#include <gtest/gtest.h>
+#include "ssiglib/ml/orthogonal_random_forest.hpp"
 
-// opencv
-#include <opencv2/core.hpp>
-#include <opencv2/ml.hpp>
-// ssiglib
-#include "classification.hpp"
+TEST(OrthogonalRF, SampleOrthogonalRF) {
+  // Automatically generated stub
 
-namespace ssig {
-class OrthogonalRF : public Classifier {
-	public :
-	ML_EXPORT static cv::Ptr<OrthogonalRF> create();
-	ML_EXPORT virtual ~OrthogonalRF(void);
+	cv::Mat_<float> inp;
+	cv::Mat labels, dataPos, dataNeg;
 
-	using Classifier::predict;
-	ML_EXPORT int predict(
-		const cv::Mat_<float>& inp,
-		cv::Mat_<float>& resp,
-		cv::Mat_<int>& labels) const override;
-	ML_EXPORT void learn(
-		const cv::Mat_<float>& input,
-		const cv::Mat& labels) override;
+	dataPos.create(20, 50, CV_32F);
+	cv::randn(dataPos, cv::Mat::zeros(1, 1, CV_32F), cv::Mat::ones(1, 1, CV_32F));
+	inp.push_back(dataPos);
+	labels.push_back(cv::Mat(std::vector<int>(dataPos.rows, 1), false));
 
-	ML_EXPORT cv::Mat getLabels() const override;
-	ML_EXPORT std::unordered_map<int, int> getLabelsOrdering() const override;
+	dataNeg.create(40, 50, CV_32F);
+	cv::randn(dataNeg, cv::Mat::zeros(1, 1, CV_32F), cv::Mat::ones(1, 1, CV_32F));
+	inp.push_back(dataNeg);
+	labels.push_back(cv::Mat(std::vector<int>(dataNeg.rows, -1), false));
 
-	ML_EXPORT void setClassWeights(const int classLabel,
-		const float weight) override;
+	auto classifier = ssig::OrthogonalRF::create();
 
-	ML_EXPORT bool empty() const override;
-	ML_EXPORT bool isTrained() const override;
-	ML_EXPORT bool isClassifier() const override;
+	classifier->setNTrees(2);
+	classifier->setDepth(3);
+	classifier->setAccuracy(0);
+	classifier->setMTry(5);
 
-	ML_EXPORT void read(const cv::FileNode& fn) override;
-	ML_EXPORT void write(cv::FileStorage& fs) const override;
+	classifier->learn(inp, labels);
 
-	ML_EXPORT void setNTrees(int nTree);
-	ML_EXPORT int getNTrees();
-	ML_EXPORT void setDepth(int depth);
-	ML_EXPORT int getDepth();
-	ML_EXPORT void setMTry(int mtry);
-	ML_EXPORT int getMTry();
-	ML_EXPORT void setAccuracy(float acc);
-	ML_EXPORT float getAccuracy();
+	cv::Mat query1,query2;
+	query1.create(1, 50, CV_32F);
+	query2.create(1, 50, CV_32F);
+	cv::randn(query1, cv::Mat::zeros(1, 1, CV_32F), cv::Mat::ones(1, 1, CV_32F));
+	cv::randn(query2, cv::Mat::zeros(1, 1, CV_32F), cv::Mat::ones(1, 1, CV_32F));
 
-	ML_EXPORT Classifier* clone() const override;
-protected:
-	ML_EXPORT OrthogonalRF(void);
-private:
-	cv::Ptr<cv::ml::RTrees> mModel;
-	int depth;
-	int mtry;
-	int nTrees;
-	float accuracy;
-
-};
-}  // namespace ssig
-#endif  // !_SSIG_ML_ORTHOGONAL_RANDOM_FOREST_HPP_
+	cv::Mat_<float> resp;
+	classifier->predict(query1, resp);
+	classifier->predict(query2, resp);
+}

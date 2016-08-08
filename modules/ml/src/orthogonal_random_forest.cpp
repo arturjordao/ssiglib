@@ -43,21 +43,125 @@
 
 namespace ssig {
 OrthogonalRF::OrthogonalRF() {
-  // Constructor
+	// Constructor
+	nTrees = 10;
+	depth = 5;
+	mtry = 5;
+	accuracy = 0.01f;
 }
 
 OrthogonalRF::~OrthogonalRF() {
   // Destructor
 }
 
-OrthogonalRF::OrthogonalRF(const OrthogonalRF& rhs) {
-  // Constructor Copy
+cv::Ptr<OrthogonalRF> OrthogonalRF::create() {
+	return cv::Ptr<OrthogonalRF>(new OrthogonalRF());
 }
 
-OrthogonalRF& OrthogonalRF::operator=(const OrthogonalRF& rhs) {
-  if (this != &rhs) {
-    // code here
-  }
-  return *this;
+void OrthogonalRF::setNTrees(int nTrees){
+	this->nTrees = nTrees;
 }
+
+int OrthogonalRF::getNTrees(){
+	return this->nTrees;
+}
+
+void OrthogonalRF::setDepth(int depth){
+	this->depth = depth;
+}
+
+int OrthogonalRF::getDepth(){
+	return this->depth;
+}
+
+void OrthogonalRF::setMTry(int mtry){
+	this->mtry = mtry;
+}
+
+int OrthogonalRF::getMTry(){
+	return this->mtry;
+}
+
+void OrthogonalRF::setAccuracy(float acc){
+	this->accuracy = acc;
+}
+
+float OrthogonalRF::getAccuracy(){
+	return this->accuracy;
+}
+
+cv::Mat OrthogonalRF::getLabels() const {
+	return mLabels;
+}
+
+std::unordered_map<int, int> OrthogonalRF::getLabelsOrdering() const {
+	std::unordered_map<int, int> ordering = { { 1, 0 }, { -1, 1 } };
+	return ordering;
+}
+
+void OrthogonalRF::setClassWeights(const int classLabel,
+	const float weight) {
+	//mMapLabel2Weight[classLabel] = weight;
+}
+
+bool OrthogonalRF::empty() const {
+	return mModel == nullptr ? true : false;
+}
+
+bool OrthogonalRF::isTrained() const {
+	return mModel != nullptr;
+}
+
+bool OrthogonalRF::isClassifier() const {
+	return true;
+}
+
+Classifier* OrthogonalRF::clone() const {
+	OrthogonalRF* ans = new OrthogonalRF();
+	ans->nTrees = this->nTrees;
+	ans->mtry = this->mtry;
+	ans->accuracy = this->accuracy;
+	ans->depth = this->depth;
+	//ans->mModel = nullptr;
+	return ans;
+}
+
+void OrthogonalRF::read(const cv::FileNode& fn) {
+	
+}
+
+void OrthogonalRF::write(cv::FileStorage& fs) const {
+
+}
+
+void OrthogonalRF::learn(
+	const cv::Mat_<float>& input,
+	const cv::Mat& labels) {
+	
+	mModel = cv::ml::RTrees::create();
+	mModel->setMaxDepth(getDepth());
+	mModel->setRegressionAccuracy(getAccuracy());
+	mModel->setActiveVarCount(getMTry());
+	auto stopCriterion = cv::TermCriteria(cv::TermCriteria::MAX_ITER, getNTrees(), getAccuracy());
+	mModel->setTermCriteria(stopCriterion);
+	mModel->setMaxCategories(2);
+
+	mModel->train(input, cv::ml::SampleTypes::ROW_SAMPLE, labels);
+}
+
+int OrthogonalRF::predict(
+	const cv::Mat_<float>& inp,
+	cv::Mat_<float>& resp,
+	cv::Mat_<int>& labels) const {
+	int label = -1;
+	cv::Mat_<float> classLabel;
+	if (!isTrained())
+		return -1;
+	
+	mModel->predict(inp, resp, cv::ml::StatModel::RAW_OUTPUT);
+	mModel->predict(inp, classLabel, cv::ml::StatModel::PREPROCESSED_INPUT);
+	label = classLabel[0][0];
+	return label;
+}
+
 }  // namespace ssig
