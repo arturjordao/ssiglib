@@ -122,7 +122,11 @@ Classifier* OrthogonalRF::clone() const {
 	ans->mtry = this->mtry;
 	ans->accuracy = this->accuracy;
 	ans->depth = this->depth;
-	//ans->mModel = nullptr;
+
+	ans->mModel = cv::ml::RTrees::create();
+	ans->mModel->setMaxDepth(ans->getDepth());
+	ans->mModel->setRegressionAccuracy(ans->getAccuracy());
+	ans->mModel->setActiveVarCount(ans->getMTry());
 	return ans;
 }
 
@@ -145,7 +149,6 @@ void OrthogonalRF::learn(
 	auto stopCriterion = cv::TermCriteria(cv::TermCriteria::MAX_ITER, getNTrees(), getAccuracy());
 	mModel->setTermCriteria(stopCriterion);
 	mModel->setMaxCategories(2);
-
 	mModel->train(input, cv::ml::SampleTypes::ROW_SAMPLE, labels);
 }
 
@@ -158,9 +161,10 @@ int OrthogonalRF::predict(
 	if (!isTrained())
 		return -1;
 	
-	mModel->predict(inp, resp, cv::ml::StatModel::RAW_OUTPUT);
-	mModel->predict(inp, classLabel, cv::ml::StatModel::PREPROCESSED_INPUT);
-	label = classLabel[0][0];
+	mModel->predict(inp, resp, cv::ml::RTrees::Flags::PREDICT_SUM);
+	resp = resp / (float)nTrees;
+
+	resp[0][0] > 0 ? label = 1 : label = 0;;
 	return label;
 }
 

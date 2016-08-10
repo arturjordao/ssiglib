@@ -60,10 +60,10 @@ TEST(OrthogonalRF, SampleOrthogonalRF) {
 
 	auto classifier = ssig::OrthogonalRF::create();
 
-	classifier->setNTrees(2);
-	classifier->setDepth(3);
-	classifier->setAccuracy(0);
-	classifier->setMTry(5);
+	classifier->setNTrees(3);
+	classifier->setDepth(10);
+	classifier->setAccuracy(0.1);
+	classifier->setMTry(10);
 
 	classifier->learn(inp, labels);
 
@@ -76,4 +76,43 @@ TEST(OrthogonalRF, SampleOrthogonalRF) {
 	cv::Mat_<float> resp;
 	classifier->predict(query1, resp);
 	classifier->predict(query2, resp);
+}
+
+TEST(OrthogonalRF, Persistence) {
+	cv::Mat_<int> labels = (cv::Mat_<int>(6, 1) << 1, 1, 1, -1, -1, -1);
+	cv::Mat_<float> inp =
+		(cv::Mat_<float>(6, 2) <<
+		1, 2, 2, 2, 4, 6,
+		102, 100, 104, 105, 99, 101);
+
+	auto classifier = ssig::OrthogonalRF::create();
+
+	classifier->setNTrees(3);
+	classifier->setDepth(10);
+	classifier->setAccuracy(0.1);
+	classifier->setMTry(10);
+
+	classifier->learn(inp, labels);
+
+	cv::Mat_<float> query1 = (cv::Mat_<float>(1, 2) << 1, 2);
+	cv::Mat_<float> query2 = (cv::Mat_<float>(1, 2) << 100, 103);
+
+	cv::Mat_<float> resp;
+	classifier->predict(query1, resp);
+	auto ordering = classifier->getLabelsOrdering();
+	int idx = ordering[1];
+	EXPECT_GE(resp[0][idx], 0);
+	classifier->predict(query2, resp);
+	idx = ordering[-1];
+	EXPECT_GE(resp[0][idx], 0);
+
+	classifier->save("rf.yml", "root");
+
+	auto loaded = ssig::OrthogonalRF::create();
+	loaded->load("rf.yml", "root");
+	loaded->predict(query1, resp);
+	EXPECT_GE(resp[0][idx], 0);
+	loaded->predict(query2, resp);
+	idx = ordering[-1];
+	EXPECT_GE(resp[0][idx], 0);
 }
